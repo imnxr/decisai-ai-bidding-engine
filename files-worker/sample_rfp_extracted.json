@@ -1,0 +1,151 @@
+{
+  "rfp_id": "RFP-SAMPLE",
+  "filename": "sample_rfp.txt",
+  "raw_text_chars": 2018,
+  "chunks": [
+    {
+      "chunk_id": "CH-001",
+      "text": "REQUEST FOR PROPOSAL (RFP)\nNational Data Centre Security Modernization Project\nRFP Reference: NDC-2026-017\nIssuing Authority: Ministry of Information Technology\n\nSECTION 1 \u2014 INTRODUCTION\nThe Ministry invites sealed proposals from qualified firms for the design,\nimplementation and certification of an information security infrastructure\nfor the National Data Centre, including cloud migration support.\n\nSECTION 2 \u2014 MANDATORY REQUIREMENTS\n2.1 The bidder shall hold a valid ISO 27001 certification.\n2.2 The bidder must demonstrate at least two completed cybersecurity projects\nwithin the last five years.\n2.3 The proposed solution shall include 24/7 security operations monitoring.\n2.4 The bidder is required to provide cloud infrastructure migration services\nfor federal government workloads.\n2.5 All personnel deployed on-site must hold security clearance issued by the\nrelevant authority.\n\nSECTION 3 \u2014 PREFERRED QUALIFICATIONS\n3.1 Experience with network design for government data centres is preferred.\n3.2 The bidder should provide evidence of CMMI Level 3 or higher process maturity.\n3.3 Prior ERP implementation experience for public sector clients is desirable."
+    },
+    {
+      "chunk_id": "CH-002",
+      "text": "should provide evidence of CMMI Level 3 or higher process maturity.\n3.3 Prior ERP implementation experience for public sector clients is desirable.\n\nSECTION 4 \u2014 EVALUATION CRITERIA\nTechnical capability and certifications: 40%\nRelevant past experience: 30%\nFinancial proposal: 20%\nProject timeline and methodology: 10%\n\nSECTION 5 \u2014 KEY DATES\nPre-bid conference: 25 June 2026\nDeadline for written queries: 2026-07-01\nProposal submission deadline: 15 July 2026\nExpected contract award: 30 August 2026\n\nSECTION 6 \u2014 FINANCIAL TERMS\nThe estimated project budget is PKR 85M.\nA bid security of PKR 1.5M must accompany each proposal.\nPayments will be milestone-based with 10% retention until final acceptance.\n\nSECTION 7 \u2014 QUESTIONS TO BIDDERS\nQ1: Describe your cybersecurity experience with government clients?\nQ2: What is your approach to 24/7 security operations monitoring?\nQ3: How will you ensure zero downtime during cloud migration?\nQ4: Describe your team structure and key personnel certifications?"
+    }
+  ],
+  "requirements": [
+    {
+      "requirement_id": "R-001",
+      "text": "SECTION 2 \u2014 MANDATORY REQUIREMENTS",
+      "mandatory": true,
+      "category": ""
+    },
+    {
+      "requirement_id": "R-002",
+      "text": "2.1 The bidder shall hold a valid ISO 27001 certification.",
+      "mandatory": true,
+      "category": "IT Services"
+    },
+    {
+      "requirement_id": "R-003",
+      "text": "2.2 The bidder must demonstrate at least two completed cybersecurity projects",
+      "mandatory": true,
+      "category": "IT Services"
+    },
+    {
+      "requirement_id": "R-004",
+      "text": "2.3 The proposed solution shall include 24/7 security operations monitoring.",
+      "mandatory": true,
+      "category": "IT Services"
+    },
+    {
+      "requirement_id": "R-005",
+      "text": "2.4 The bidder is required to provide cloud infrastructure migration services",
+      "mandatory": true,
+      "category": "IT Services"
+    },
+    {
+      "requirement_id": "R-006",
+      "text": "2.5 All personnel deployed on-site must hold security clearance issued by the",
+      "mandatory": true,
+      "category": "IT Services"
+    },
+    {
+      "requirement_id": "R-007",
+      "text": "SECTION 3 \u2014 PREFERRED QUALIFICATIONS",
+      "mandatory": false,
+      "category": ""
+    },
+    {
+      "requirement_id": "R-008",
+      "text": "3.1 Experience with network design for government data centres is preferred.",
+      "mandatory": false,
+      "category": "IT Services"
+    },
+    {
+      "requirement_id": "R-009",
+      "text": "3.2 The bidder should provide evidence of CMMI Level 3 or higher process maturity.",
+      "mandatory": false,
+      "category": ""
+    },
+    {
+      "requirement_id": "R-010",
+      "text": "3.3 Prior ERP implementation experience for public sector clients is desirable.",
+      "mandatory": false,
+      "category": "IT Services"
+    },
+    {
+      "requirement_id": "R-011",
+      "text": "A bid security of PKR 1.5M must accompany each proposal.",
+      "mandatory": true,
+      "category": "IT Services"
+    }
+  ],
+  "evaluation_criteria": [
+    {
+      "criterion": "Technical capability and certifications: 40%",
+      "weight_pct": 40
+    },
+    {
+      "criterion": "Relevant past experience: 30%",
+      "weight_pct": 30
+    },
+    {
+      "criterion": "Financial proposal: 20%",
+      "weight_pct": 20
+    },
+    {
+      "criterion": "Project timeline and methodology: 10%",
+      "weight_pct": 10
+    }
+  ],
+  "deadlines": [
+    {
+      "date": "25 June 2026",
+      "context": "Pre-bid conference: 25 June 2026"
+    },
+    {
+      "date": "2026-07-01",
+      "context": "Deadline for written queries: 2026-07-01"
+    },
+    {
+      "date": "15 July 2026",
+      "context": "Proposal submission deadline: 15 July 2026"
+    },
+    {
+      "date": "30 August 2026",
+      "context": "Expected contract award: 30 August 2026"
+    }
+  ],
+  "questions": [
+    {
+      "question_id": "Q-001",
+      "question": "Q1: Describe your cybersecurity experience with government clients?",
+      "category": "IT Services"
+    },
+    {
+      "question_id": "Q-002",
+      "question": "Q2: What is your approach to 24/7 security operations monitoring?",
+      "category": "IT Services"
+    },
+    {
+      "question_id": "Q-003",
+      "question": "Q3: How will you ensure zero downtime during cloud migration?",
+      "category": "IT Services"
+    },
+    {
+      "question_id": "Q-004",
+      "question": "Q4: Describe your team structure and key personnel certifications?",
+      "category": ""
+    }
+  ],
+  "financials": [
+    {
+      "amount": "PKR 85M",
+      "context": "The estimated project budget is PKR 85M."
+    },
+    {
+      "amount": "PKR 1.5M",
+      "context": "A bid security of PKR 1.5M must accompany each proposal."
+    }
+  ]
+}

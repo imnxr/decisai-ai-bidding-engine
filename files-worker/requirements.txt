@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+scikit-learn
+pandas
+openpyxl
+sentence-transformers
+chromadb
+pydantic
+python-multipart
+requests
+joblib
+pymupdf
+python-docx
+pdfminer.six

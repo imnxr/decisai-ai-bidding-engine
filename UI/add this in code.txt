@@ -1,0 +1,26 @@
+import re
+src = open("bidpilot.jsx").read()
+
+replacements = [
+  ('© 2026 TekRowe Technologies · BidPilot AI Enterprise', '© 2026 X Group · DecisAI Enterprise'),
+  ('Access your BidPilot AI workspace.', 'Access your DecisAI workspace.'),
+  ('New to BidPilot AI?', 'New to DecisAI?'),
+  ('Set up BidPilot AI for your organization.', 'Set up DecisAI for your organization.'),
+  ("We'll help you regain access to your BidPilot AI workspace in a few quick steps.", "We'll help you regain access to your DecisAI workspace in a few quick steps."),
+  ('"Hi! I\'m your BidPilot AI assistant. Ask me about this RFP\'s requirements, compliance gaps, or how to strengthen your proposal."', '"Hi! I\'m your DecisAI assistant. Ask me about this RFP\'s requirements, compliance gaps, or how to strengthen your proposal."'),
+  ('You are BidPilot AI, an assistant embedded in a bid & proposal management tool for TekRowe Technologies.', 'You are DecisAI, an AI decision-support assistant embedded in a bid & proposal management tool for TekRowe Technologies, built by X Group.'),
+  ('BidPilot Assistant', 'DecisAI Assistant'),
+  ('Create your first workspace to let BidPilot AI extract requirements and run a compliance check.', 'Create your first workspace to let DecisAI extract requirements and run a compliance check.'),
+  ('>BidPilot AI</span>', '>DecisAI</span>'),
+  ('{ id: "n1", title: "Welcome to BidPilot AI"', '{ id: "n1", title: "Welcome to DecisAI"'),
+  ('{ id: "a0", title: "Welcome to BidPilot AI"', '{ id: "a0", title: "Welcome to DecisAI"'),
+  ('THEME — "BidPilot AI" Design System', 'THEME — "DecisAI" Design System (by X Group)'),
+]
+for old, new in replacements:
+    if old not in src:
+        print("MISSING:", old)
+    src = src.replace(old, new)
+
+open("bidpilot.jsx","w").write(src)
+print("done")
+EOF
