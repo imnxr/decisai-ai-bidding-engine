@@ -1,9 +1,13 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyd
+*.so
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
 # Virtual environments
 venv/
@@ -31,6 +35,8 @@ chroma_db/
 *.pkl
 *.joblib
 *.log
+
+# Local app state / user data
 team_x_store.json
 *.session
 *.cache
