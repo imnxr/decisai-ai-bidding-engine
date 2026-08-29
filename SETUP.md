@@ -1,36 +1,55 @@
-# Quick Setup (DecisAI / BidPilot System)
+# DecisAI Quick Setup
 
-This archive contains the full system: the React frontend (`UI/`) and the Python
-backend + database (`module1/`). Dependency folders (`venv`, `node_modules`,
-`__pycache__`) were excluded to keep the download small — they are regenerated
-below.
+DecisAI is split into a React frontend (`UI/`) and a Python/FastAPI backend (`files-worker/`). Runtime folders, secrets, ChromaDB data, and generated model artifacts are intentionally excluded from the public repository.
 
-## 1. Backend (module1)
+## 1. Backend
 
 ```bash
-cd module1
+cd files-worker
 python -m venv venv
-# Windows:
+
+# Windows
 venv\Scripts\activate
-# macOS/Linux:
+
+# macOS/Linux
 source venv/bin/activate
 
 pip install -r requirements.txt
 ```
 
-Run the backend (FastAPI / uvicorn):
+Build the local capability index and trained win-probability model when needed:
 
 ```bash
-uvicorn main:app --reload
+python data_prep.py
+python train_models.py
+python rag_setup.py
 ```
 
-Notes:
-- `chroma_db/` (vector store) and `model_a_win_probability.pkl` (trained model)
-  are included, so you don't need to retrain or re-index.
-- Ollama runs locally. Claude is optional and requires your own `ANTHROPIC_API_KEY` in a local `.env` file.
-  See `README.md`, `setup.md`, and `API_CONTRACT.md` in `module1/`.
+Start FastAPI:
 
-## 2. Frontend (UI)
+```bash
+python -m uvicorn main:app --reload
+```
+
+Interactive API docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## 2. Local LLM
+
+Install Ollama and download the lightweight local model:
+
+```bash
+ollama pull qwen2.5:1.5b
+```
+
+The local path does not require an external LLM API key.
+
+Claude is optional. To enable it, copy `files-worker/.env.example` to `files-worker/.env` and add your own `ANTHROPIC_API_KEY` locally. Never commit `.env`.
+
+## 3. Frontend
 
 ```bash
 cd UI
@@ -38,9 +57,22 @@ npm install
 npm run dev
 ```
 
-The dev server (Vite) will print a local URL (usually http://localhost:5173).
+The Vite development server normally runs on:
 
-## 3. Order
+```text
+http://127.0.0.1:5173
+```
 
-Start the backend first, then the frontend. Confirm the frontend's API base URL
-points at the running backend.
+Start the backend before the frontend.
+
+## 4. Tests
+
+```bash
+cd files-worker
+python test_doc_intel.py
+python test_module1.py
+```
+
+## 5. Data
+
+The included XLSX sample contains bid-history and capability-library data. `data_prep.py` cleans the workbook and prepares the capability records for embedding/retrieval. A replacement workbook can be supplied through the `MODULE1_XLSX` environment variable.
