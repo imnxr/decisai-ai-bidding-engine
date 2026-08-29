@@ -1,342 +1,310 @@
 # DecisAI - AI Bidding Engine
 
-DecisAI is an AI-assisted bid decision and proposal-response system for **RFPs, RFQs, and tenders**.
+> An AI-assisted procurement intelligence and bid-response platform for **RFPs, RFQs, and tenders**.
 
-It turns a procurement document into a traceable workflow:
+DecisAI takes a procurement document from upload to an evidence-backed **GO / NO-GO** recommendation. Instead of treating an LLM as the source of truth, the system combines document intelligence, semantic retrieval, transparent compliance rules, grounded generation, validation, and bid scoring into one auditable workflow.
 
-**Upload → Extract → Match Evidence → Compliance → Draft Response → Risk Review → Win Score → GO / NO-GO → Export**
+**Upload → Extract → Retrieve Evidence → Compliance → Draft → Validate → Score → Decide → Export**
 
-The system is designed around one core principle:
+![DecisAI Architecture](images/architecture.png)
 
-> **Every generated claim should be traceable to evidence, and unsupported proposal content should not be invented.**
+## Why DecisAI?
 
-## What DecisAI Does
+Preparing a serious bid means reading long tender documents, finding mandatory requirements, checking whether the company can actually satisfy them, locating supporting past-project evidence, drafting responses, identifying risks, and deciding whether the opportunity is worth pursuing.
 
-DecisAI combines deterministic document intelligence, semantic retrieval, a local LLM, optional Claude integration, rule-based compliance logic, and a trained win-probability model.
+DecisAI turns that process into a structured workflow while keeping the evidence visible and the human decision-maker in control.
 
-### 1. Document Intelligence
-Users can upload PDF, DOCX, TXT, or Markdown bid documents.
+## What It Can Handle
 
-The backend extracts:
+### Procurement Documents
+
+DecisAI is built for **RFPs, RFQs, and tender documents** and accepts:
+
+- PDF
+- DOCX
+- TXT
+- Markdown
+
+The document-intelligence layer extracts text from the complete uploaded document and builds **sliding-window chunks with overlap** for downstream processing. This makes the pipeline suitable for **large, multi-page procurement documents**, including documents containing hundreds of individual requirements. Actual practical limits depend on document size, structure, available RAM/CPU, and the extraction/model configuration.
+
+### Company / Bid Datasets
+
+The data layer works with structured bid and capability datasets stored in **XLSX** files using pandas/openpyxl. The included sample contains bid-history data and a capability library that is cleaned, transformed, embedded, and indexed for retrieval.
+
+This creates an important separation:
+
+**Tender/RFP/RFQ = what the buyer requires**  
+**Capability Library = what the company can prove**
+
+The RAG layer connects the two.
+
+![Dataset Upload](images/dataset-upload.png)
+
+## Core Workflow
+
+### 01. Upload
+
+A user uploads an RFP, RFQ, or tender through the React interface. FastAPI stores the document and creates a workflow ID.
+
+![Upload Document](images/upload-document.png)
+
+### 02. Document Intelligence
+
+`doc_intel.py` extracts structured information including:
 
 - requirements
-- mandatory vs optional obligations
+- mandatory and optional obligations
 - evaluation criteria
 - deadlines
-- questions
 - financial figures
-- document metadata
-- text chunks for downstream retrieval
+- questions
+- metadata
+- document chunks
 
-The extraction layer is intentionally hybrid. Deterministic regex/heuristic extraction is the baseline because it is fast, explainable, and works offline. Optional LLM enrichment can improve requirements/questions when configured.
+The baseline extraction is deterministic and explainable. Optional LLM enrichment can improve requirement/question discovery when a provider is available.
 
-### 2. Evidence Matching with RAG
-Each capability requirement is embedded with **SentenceTransformers `all-MiniLM-L6-v2`** and searched against a persistent **ChromaDB** capability library.
+![Extraction](images/extraction.png)
 
-Retrieval returns evidence such as:
+### 03. RAG Evidence Retrieval
 
-- capability ID
-- domain
-- certification
-- client type
-- contract value
-- duration
-- completion year
-- similarity score
+Requirements are embedded with **SentenceTransformers `all-MiniLM-L6-v2`** and searched against a persistent **ChromaDB** capability index.
 
-The matching layer can apply a small domain boost and drops weak similarity matches below the configured threshold.
+Retrieved evidence can include:
 
-### 3. Compliance Classification
-Every requirement is classified as:
+| Evidence | Example |
+|---|---|
+| Capability ID | `CAP-001` |
+| Domain | Cybersecurity |
+| Certification | ISO 27001 |
+| Client Type | International |
+| Contract Value | PKR 15M |
+| Duration | 34 months |
+| Year Completed | 2023 |
+| Similarity Score | 0.727 |
 
-- `PASS`
-- `PARTIAL`
-- `FAIL`
-- `INFO`
+The retriever also maps bid sectors to relevant capability domains and applies a small domain boost before thresholding weak matches.
 
-The compliance classifier is deliberately **rule-based**, not presented as ML, because the supplied bid dataset does not contain trustworthy PASS/FAIL labels for training a compliance classifier.
+![Capability Matching](images/capability-matching.png)
 
-### 4. Grounded Proposal Drafting
-Proposal answers can be generated by either:
+### 04. Compliance Classification
 
-**Local mode**
-- Ollama
-- **Qwen 2.5 1.5B**
-- works locally/offline once the model is downloaded
+Each capability-oriented requirement is classified with transparent rules:
 
-**Optional online mode**
-- Claude API
-- only when the user provides an API key locally
+| Status | Meaning |
+|---|---|
+| **PASS** | Strong evidence supports the requirement |
+| **PARTIAL** | Some relevant evidence exists, but coverage is incomplete |
+| **FAIL** | No acceptable capability evidence was found for a mandatory requirement |
+| **INFO** | Administrative/financial information that should be tracked separately |
 
-A provider-agnostic validator checks generated answers for:
+The compliance classifier is intentionally **rule-based**, because the source bid data does not contain trustworthy PASS/PARTIAL/FAIL labels for supervised training. Presenting fabricated labels as ML would make the system less credible, not more.
 
-- invented CAP IDs
-- unsupported numbers
+![Compliance](images/compliance.png)
+
+### 05. Grounded Proposal Drafting
+
+DecisAI uses a provider chain for proposal generation:
+
+```text
+Optional Claude
+      ↓
+Local Ollama / Qwen 2.5 1.5B
+      ↓
+Deterministic grounded template
+```
+
+The important part is not the choice of model. It is the validation layer around the model.
+
+Every generated response is checked for:
+
+- invented capability IDs
+- invented numerical values
 - unsupported units
 - unsupported capacity claims
 - unsupported team/personnel claims
 
-If validation fails, DecisAI falls back to a deterministic grounded template.
+If a generated answer fails validation, the system retries the local model when appropriate and ultimately falls back to a deterministic evidence-backed template.
 
-### 5. Bid Scoring and Decision Support
-The system calculates a transparent weighted bid score using:
+![AI Drafting](images/ai-drafting.png)
+
+### 06. Risk Register
+
+Weak matches, failed requirements, and administrative items can be surfaced as risks with ownership/action context in the UI so that a bid is not judged on a single score alone.
+
+### 07. Bid Scoring
+
+The scoring layer combines five signals:
 
 - compliance
 - domain match
 - budget alignment
-- past win rate
-- competitor risk
+- historical win rate
+- competitor presence/risk
 
-It also includes a trained **RandomForest win-probability model** based on bid-history data.
+The project also includes a genuine **RandomForest win-probability model** trained on the supplied bid-history data. The model uses sector plus numeric bid features such as budget, score, compliance, response time, document pages, and gaps found.
 
-The decision layer produces:
+![Decision](images/decision.png)
 
-- `GO`
-- `CONDITIONAL GO`
-- `HIGH RISK`
-- `NO-GO`
+### 08. GO / NO-GO Decision
 
-A bid manager can then confirm the final decision.
+The decision layer converts the evidence and scoring signals into an actionable recommendation:
 
-### 6. Export
-The final workflow can be exported as:
+**GO · CONDITIONAL GO · HIGH RISK · NO-GO**
+
+The final choice remains human-confirmed. DecisAI is a decision-support system, not an autonomous bidding authority.
+
+### 09. Export
+
+Final workflow data can be exported as:
 
 - JSON
 - DOCX
 - PDF
 
-## Architecture
-
-DecisAI follows a layered architecture that connects the React interface to the FastAPI orchestration layer, evidence retrieval, LLM services, ML/scoring, storage, and export.
-
-![DecisAI System Architecture](images/architecture.png)
-
-### System Flow
-
-The high-level workflow is:
-
-**Upload RFP / RFQ / Tender → Extract → Match Capabilities → Retrieve Evidence → Classify Compliance → Draft Proposal → Validate → Score & Evaluate → GO / NO-GO → Export**
-
-### Application Screenshots
-
-The repository also includes screenshots of the working system. Add the screenshots to the `images/` folder using the filenames below so GitHub renders this section automatically.
-
-| Screenshot | Filename | What it shows |
-|---|---|---|
-| Dashboard | `dashboard.png` | Main DecisAI dashboard and bid overview |
-| Upload Document | `upload-document.png` | RFP/RFQ/Tender document upload |
-| Extraction | `extraction.png` | Extracted document content and structured requirements |
-| Capability Matching | `capability-matching.png` | Requirement-to-capability evidence matching |
-| Requirement Details | `requirement-details.png` | Detailed requirement analysis and evidence state |
-| Compliance | `compliance.png` | Compliance results and requirement status |
-| Risk & Decision | `decision.png` | Risk indicators and final bid decision |
-| AI Drafting | `ai-drafting.png` | AI-generated grounded proposal response |
-| Dataset Upload | `dataset-upload.png` | Dataset upload interface |
-| Certificates / Evidence | `certificates.png` | Supporting company evidence and certificates |
-| End-to-End Workflow | `e2e-workflow.png` | Complete application workflow |
-| Software Architecture | `software-architecture.png` | Architecture overview captured from the system documentation |
-
-#### Dashboard
-
-![DecisAI Dashboard](images/dashboard.png)
-
-#### Document Upload
-
-![Upload RFP, RFQ or Tender](images/upload-document.png)
-
-#### Requirement Extraction
-
-![Requirement Extraction](images/extraction.png)
-
-#### Capability Matching
-
-![Capability Matching](images/capability-matching.png)
-
-#### Compliance Analysis
-
-![Compliance Analysis](images/compliance.png)
-
-#### AI Proposal Drafting
-
-![AI Proposal Drafting](images/ai-drafting.png)
-
-#### Risk & Decision
-
-![Bid Decision](images/decision.png)
-
-#### End-to-End Workflow
-
-![End-to-End Workflow](images/e2e-workflow.png)
-
-## End-to-End Flow
-
-1. User opens the DecisAI dashboard.
-2. User uploads an RFP, RFQ, or Tender.
-3. FastAPI receives and stores the file.
-4. Document Intelligence extracts raw text and structure.
-5. The UI presents the document summary and preview.
-6. Requirements are sent through compliance matching.
-7. RAG retrieves relevant capability evidence.
-8. Each requirement receives a PASS / PARTIAL / FAIL / INFO result.
-9. Weak or failed areas become risk-register items.
-10. Proposal questions are passed to the drafting layer.
-11. Claude or local Ollama generates a grounded response.
-12. Validators reject unsupported claims.
-13. The win-score dashboard combines the scoring signals.
-14. DecisAI recommends GO / CONDITIONAL GO / HIGH RISK / NO-GO.
-15. The bid manager confirms the final decision.
-16. The system exports the result as JSON, DOCX, or PDF.
-
-## Technical Architecture
+## End-to-End Architecture
 
 ```text
-                    ┌───────────────────────────┐
-                    │       React + Vite UI     │
-                    │ Dashboard / Workflow /    │
-                    │ Tables / Charts / Export   │
+                               DecisAI
+                                  │
+                    ┌─────────────▼─────────────┐
+                    │      React + Vite UI      │
+                    │ Dashboard • Upload • RAG  │
+                    │ Compliance • Draft • Score│
                     └─────────────┬─────────────┘
                                   │ HTTP / JSON
                                   ▼
                     ┌───────────────────────────┐
-                    │       FastAPI Backend     │
-                    │ Upload / Orchestration /  │
-                    │ Scoring / Decision / API  │
+                    │      FastAPI Backend      │
+                    │ API + Workflow Orchestration│
                     └─────────────┬─────────────┘
                                   │
-              ┌───────────────────┼───────────────────┐
-              │                   │                   │
-              ▼                   ▼                   ▼
-    ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐
-    │ Document Intel  │  │ RAG Evidence      │  │ Win Probability │
-    │ PDF/DOCX/TXT    │  │ MiniLM + ChromaDB │  │ RandomForest    │
-    │ Regex/Heuristics│  │ Capability search │  │ + scoring rules │
-    └────────┬────────┘  └────────┬─────────┘  └────────┬────────┘
-             │                    │                     │
-             └────────────────────┼─────────────────────┘
-                                  ▼
-                       ┌─────────────────────┐
-                       │  Grounded LLM Layer │
-                       │ Claude (optional)   │
-                       │ Ollama Qwen 2.5 1.5B│
-                       │ + anti-hallucination│
-                       │ + template fallback │
-                       └──────────┬──────────┘
-                                  ▼
-                       ┌─────────────────────┐
-                       │   Decision + Export │
-                       │ JSON / DOCX / PDF   │
-                       └─────────────────────┘
+          ┌───────────────────────┼────────────────────────┐
+          │                       │                        │
+          ▼                       ▼                        ▼
+┌───────────────────┐   ┌───────────────────┐   ┌────────────────────┐
+│ Document Intel    │   │ Evidence / RAG     │   │ Scoring + ML       │
+│ PDF/DOCX/TXT/MD   │   │ MiniLM + ChromaDB  │   │ Rules + RandomForest│
+│ Regex / Heuristics│   │ Capability Library │   │ Win Probability     │
+└─────────┬─────────┘   └──────────┬────────┘   └─────────┬──────────┘
+          │                        │                      │
+          └────────────────────────┼──────────────────────┘
+                                   ▼
+                       ┌────────────────────────┐
+                       │ Grounded LLM Layer     │
+                       │ Claude (optional)      │
+                       │ Ollama + Qwen 2.5 1.5B │
+                       │ Validation + Fallback  │
+                       └────────────┬───────────┘
+                                    ▼
+                       ┌────────────────────────┐
+                       │ Decision + Export      │
+                       │ GO/NO-GO • JSON/DOCX/PDF│
+                       └────────────────────────┘
 ```
 
-## Repository Structure
+The supplied architecture documentation describes the same flow from document upload through extraction, evidence retrieval, compliance, grounded drafting, validation, scoring, human confirmation, and export. The public repository uses a clean architecture graphic rather than committing the original PDF.
 
-```text
-decisai-ai-bidding-engine/
-├── UI/
-│   ├── BidPilot.jsx
-│   ├── index.html
-│   ├── package.json
-│   └── src/
-│       └── main.jsx
-│
-├── module1/
-│   ├── main.py
-│   ├── doc_intel.py
-│   ├── rag_setup.py
-│   ├── llm_module.py
-│   ├── claude_client.py
-│   ├── ollama_client.py
-│   ├── template_fallback.py
-│   ├── data_prep.py
-│   ├── train_models.py
-│   ├── proposal_export.py
-│   ├── requirements.txt
-│   ├── API_CONTRACT.md
-│   ├── DEMO_SCRIPT.md
-│   ├── README.md
-│   ├── setup.md
-│   └── .env.example
-│
-├── images/
-│   ├── architecture.png
-│   ├── dashboard.png
-│   ├── upload-document.png
-│   ├── extraction.png
-│   ├── capability-matching.png
-│   ├── requirement-details.png
-│   ├── compliance.png
-│   ├── decision.png
-│   ├── ai-drafting.png
-│   ├── dataset-upload.png
-│   ├── certificates.png
-│   ├── e2e-workflow.png
-│   └── software-architecture.png
-│
-├── .gitignore
-├── SETUP.md
-└── README.md
-```
+## AI / ML Stack
 
-## Core Backend Modules
-
-| Module | Responsibility |
+| Layer | Technology |
 |---|---|
-| `main.py` | FastAPI server, endpoints, workflow orchestration |
-| `doc_intel.py` | RFP/RFQ/Tender parsing and structured extraction |
-| `rag_setup.py` | SentenceTransformer embeddings + ChromaDB retrieval |
-| `llm_module.py` | Claude/Ollama orchestration + validation + fallback |
-| `ollama_client.py` | Local Ollama HTTP client |
-| `claude_client.py` | Optional Claude provider |
-| `template_fallback.py` | Safe deterministic grounded response generation |
-| `data_prep.py` | Dataset loading, cleaning, PKR parsing, capability text |
-| `train_models.py` | RandomForest win model + rule-based compliance classifier |
-| `proposal_export.py` | DOCX/PDF proposal generation |
-
-## AI Stack
-
-| Component | Technology |
-|---|---|
-| UI | React 19 + Vite |
-| API | FastAPI + Python |
-| Document extraction | PyMuPDF / pdfminer / python-docx |
+| Frontend | React 19, Vite, JavaScript, Lucide React |
+| Backend | FastAPI, Python |
+| PDF extraction | PyMuPDF, pdfminer.six |
+| DOCX extraction | python-docx |
 | Embeddings | SentenceTransformers `all-MiniLM-L6-v2` |
 | Vector store | ChromaDB |
 | Local LLM | Ollama + `qwen2.5:1.5b` |
-| Optional cloud LLM | Claude API |
-| ML model | scikit-learn RandomForest |
+| Optional cloud LLM | Claude API provider |
+| Win-probability model | scikit-learn RandomForest |
+| Data processing | pandas, openpyxl |
 | Model persistence | joblib |
-| DOCX export | python-docx |
-| PDF export | PyMuPDF |
+| Proposal export | python-docx, PyMuPDF |
 
-## Security / API Keys
+## Anti-Hallucination Design
 
-**No API key is intentionally included in this repository.**
+The most important engineering feature in DecisAI is that **generation is not accepted just because it is fluent**.
 
-The original project archive contained a live Claude `ANTHROPIC_API_KEY` in `module1/.env`. That credential has been removed from the publishable repository.
+The validator checks whether the model:
 
-Use:
+1. cites capability IDs that actually exist in the retrieved evidence;
+2. introduces numbers that were not present in the question/evidence;
+3. introduces unsupported units such as MW, km, Gbps, users, etc.;
+4. turns available facts into unsupported capacity claims; and
+5. invents personnel/team facts that are not present in the capability data.
+
+A rejected generation moves to the next safe stage instead of being shown as a trusted answer.
 
 ```text
-module1/.env.example
+LLM output
+    │
+    ▼
+Validate JSON/schema
+    │
+    ├── valid + grounded ──► return response
+    │
+    └── rejected ──────────► retry / fallback
+                                   │
+                                   ▼
+                         grounded deterministic answer
 ```
 
-to create your own local `.env`.
+This makes the worst-case output **less polished, not more fabricated**.
 
-Never commit `.env`.
+## Backend Modules
 
-Claude is optional. DecisAI can run with local Ollama and its deterministic template fallback without a Claude API key.
+| File | Responsibility |
+|---|---|
+| `files-worker/main.py` | FastAPI endpoints and workflow orchestration |
+| `files-worker/doc_intel.py` | Procurement-document extraction, chunking, requirements, questions, deadlines, financials |
+| `files-worker/data_prep.py` | Bid/capability dataset loading and preparation |
+| `files-worker/rag_setup.py` | Embeddings, ChromaDB indexing and evidence retrieval |
+| `files-worker/llm_module.py` | LLM orchestration, validation and fallback |
+| `files-worker/ollama_client.py` | Local Ollama client |
+| `files-worker/claude_client.py` | Optional Claude provider |
+| `files-worker/template_fallback.py` | Deterministic grounded response generation |
+| `files-worker/train_models.py` | RandomForest win model + rule-based compliance logic |
+| `files-worker/proposal_export.py` | DOCX/PDF generation |
 
-## Local Setup
+## API Flow
+
+```text
+POST /api/upload
+        │
+        ▼
+GET /api/rfp/{id}/extract
+        │
+        ▼
+POST /api/rfp/{id}/match
+        │
+        ▼
+POST /api/rfp/{id}/draft
+        │
+        ▼
+GET /api/rfp/{id}/score
+        │
+        ▼
+GET /api/rfp/{id}/decision
+        │
+        ▼
+POST /api/rfp/{id}/decision
+        │
+        ▼
+JSON / DOCX / PDF
+```
+
+The backend also exposes lower-level compliance, answer-generation, win-score, and health endpoints.
+
+## Running Locally
 
 ### Backend
 
 ```bash
-cd module1
-
+cd files-worker
 python -m venv venv
 
 # Windows
-venv\Scripts\activate
+venv\\Scripts\\activate
 
 # macOS/Linux
 source venv/bin/activate
@@ -344,23 +312,28 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Ollama
+Build the capability index and train the win model when needed:
 
-Install Ollama, then pull the primary local model:
+```bash
+python data_prep.py
+python train_models.py
+python rag_setup.py
+```
+
+Start the API:
+
+```bash
+python -m uvicorn main:app --reload
+```
+
+### Local LLM
 
 ```bash
 ollama pull qwen2.5:1.5b
+ollama run qwen2.5:1.5b
 ```
 
-Recommended environment:
-
-```text
-OLLAMA_MODEL=qwen2.5:1.5b
-OLLAMA_NUM_GPU=0
-OLLAMA_TIMEOUT=90
-```
-
-The project uses local inference so the main LLM path can operate without sending bid data to an external API.
+The Ollama client talks to the local Ollama service at `localhost`; it does not need a cloud API key.
 
 ### Frontend
 
@@ -370,56 +343,59 @@ npm install
 npm run dev
 ```
 
-Start the backend first:
-
-```bash
-cd module1
-python -m uvicorn main:app --reload
-```
-
-Then start the React development server.
-
 ## Testing
 
-The project includes automated checks for the document-intelligence and model pipeline:
-
 ```bash
-cd module1
-
-python test_module1.py
+cd files-worker
 python test_doc_intel.py
+python test_module1.py
 ```
 
-The test strategy specifically checks grounded output behavior, fallback handling, requirement extraction, and other pipeline invariants.
+The included test suite covers extraction behavior, schema validation, retrieval/compliance behavior, hallucination guards, model loading, and fallback behavior.
 
-## Design Principles
+## Repository Screenshots
 
-### Grounded generation over fluent invention
-DecisAI does not treat LLM output as automatically trustworthy.
+### Dashboard
+![Dashboard](images/dashboard.png)
 
-Generated proposal responses are checked before being returned.
+### 500+ Requirement Example
+![Large Requirement Set](images/500-rfp.png)
 
-### Deterministic first where reliability matters
-Document parsing and compliance logic use explicit rules wherever a deterministic approach is safer and easier to audit.
+### Capability Matching
+![Capability Matching](images/capability-matching.png)
 
-### Human confirmation remains in the loop
-The system recommends a bid decision, but the bid manager confirms the final GO / NO-GO call.
+### Compliance Matrix
+![Compliance](images/compliance.png)
 
-### Offline-capable AI path
-The main local AI path uses Ollama + Qwen 2.5 1.5B, with template fallback if the model is unavailable or produces invalid output.
+### AI Drafting
+![AI Drafting](images/ai-drafting.png)
+
+### Bid Decision
+![Decision](images/decision.png)
+
+### End-to-End Workflow
+![Workflow](images/e2e-workflow.png)
+
+## Security
+
+No live API credential is intentionally committed to this repository.
+
+- `.env` files are ignored by Git.
+- `.env.example` contains placeholders only.
+- Local runtime state and ChromaDB data are ignored.
+- Generated model artifacts are ignored and can be regenerated locally.
+- The original architecture PDF is not included; selected visuals are stored as images instead.
+
+## Project Status
+
+**Hackathon / functional prototype**
+
+The core pipeline is implemented end-to-end, but production deployment would still require stronger authentication, persistent production storage, hardened file handling, richer claim-level semantic validation, observability, and additional scaling work for enterprise workloads.
 
 ## One-Line Pitch
 
-**DecisAI ingests an RFP, RFQ, or tender, extracts its requirements, retrieves real company evidence with RAG, checks compliance, drafts grounded responses, estimates bid viability, recommends GO / NO-GO, and exports a traceable proposal package.**
+**DecisAI reads RFPs, RFQs, and tenders, extracts what the buyer requires, finds what the company can prove, checks compliance, drafts evidence-backed responses, scores bid viability, and helps a human make the final GO / NO-GO decision.**
 
-## Hackathon Context
+## Hackathon Note
 
-DecisAI was developed as a hackathon project focused on practical AI-assisted procurement and bid-response automation.
-
-The architecture and control-flow documentation was used to create the clean architecture graphic shown above; the original PDF is intentionally not included in the repository.
-
-## Screenshots
-
-For consistency, keep all project screenshots in `images/` and use lowercase kebab-case filenames.
-
-The architecture PDF itself is intentionally **not included** in this repository. The README uses a clean architecture graphic plus selected screenshots instead.
+Built as a practical AI-assisted procurement and bid-response system, DecisAI combines deterministic document intelligence, RAG, local LLM inference, grounded generation, transparent compliance logic, machine-learning-assisted win scoring, and human-in-the-loop decision support.
