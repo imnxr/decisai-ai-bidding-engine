@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Frontend
+node_modules/
+dist/
+.vite/
+
+# Runtime / generated data
+uploaded_rfps/
+chroma_db/
+*.sqlite3
+*.bin
+*.pkl
+*.joblib
+*.log
+team_x_store.json
+*.session
+*.cache
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
